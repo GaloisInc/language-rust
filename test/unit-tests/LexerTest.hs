@@ -122,6 +122,10 @@ commonCode = testGroup "lexing common code fragments"
               , LiteralTok (IntegerTok "1") Nothing
               ]
 
+  -- Unicode characters that require surrogate pairs to encode in UTF-16. These
+  -- serve as regression tests for issue #3.
+  , testCode "𝑂_𝑂" [ IdentTok (mkIdent "𝑂_𝑂") ]
+  , testCode "𐌝" [ IdentTok (mkIdent "𐌝") ]
   ]
 
 
