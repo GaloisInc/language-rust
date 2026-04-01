@@ -103,7 +103,7 @@ import Language.Rust.Data.Position
 import Language.Rust.Syntax.AST
 import Language.Rust.Syntax.Token
 
-import Data.Text.Prettyprint.Doc hiding ( (<+>), hsep, indent, vsep )
+import Prettyprinter hiding ( (<+>), hsep, indent, vsep )
 
 import Data.Maybe               ( maybeToList, fromMaybe )
 import Data.Foldable            ( toList )
@@ -962,7 +962,7 @@ printGenerics :: Generics a -> Doc a
 printGenerics (Generics params _ x)
   | null params = mempty
   | otherwise =  let params' = printGenericParam `map` params
-                 in annotate x (group ("<" <##> ungroup (block NoDelim True "," mempty params') <##> ">"))
+                 in annotate x (layoutTris params')
 
 -- | Print a poly-trait ref (@print_poly_trait_ref@)
 printPolyTraitRef :: PolyTraitRef a -> Doc a
@@ -983,7 +983,14 @@ printGenericArgs colons (AngleBracketed args bds x) = annotate x (when colons ":
   where
     args' = printGenericArg <$> args
     bds' = printAssocTyConstraint <$> bds
-    angleStuff = group ("<" <##> ungroup (block NoDelim True "," mempty (args' ++ bds')) <##> ">")
+    angleStuff = group (layoutTris (args' ++ bds'))
+
+layoutTris :: [Doc ann] -> Doc ann
+layoutTris xs = group ("<" <##> vsep (go xs) <##> ">")
+  where
+  go []     = []
+  go [z]    = [ flatAlt (indent n z <> ",") (flatten z) ]
+  go (z:zs) = flatAlt (indent n z <> ",") (flatten z <> ",") : go zs
 
 -- | Print a generic argument
 printGenericArg :: GenericArg a -> Doc a
