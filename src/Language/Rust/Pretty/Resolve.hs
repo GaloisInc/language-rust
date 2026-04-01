@@ -369,10 +369,10 @@ instance (Typeable a, Monoid a) => Resolve (Path a) where
 resolvePathSegment :: (Typeable a, Monoid a) => PathSegment a -> ResolveM (PathSegment a)
 resolvePathSegment (PathSegment i a x') = do
   i' <- case i of
-          Ident "self" False _ -> pure i
-          Ident "Self" False _ -> pure i
-          Ident "super" False _ -> pure i
-          Ident "crate" False _ -> pure i
+          Ident { name = "self", raw = False } -> pure i
+          Ident { name = "Self", raw = False } -> pure i
+          Ident { name = "super", raw = False } -> pure i
+          Ident { name = "crate", raw = False } -> pure i
           _ -> resolveIdent i
   a' <- traverse resolveGenericArgs a
   pure (PathSegment i' a' x')

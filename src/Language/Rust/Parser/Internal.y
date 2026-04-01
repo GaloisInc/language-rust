@@ -880,7 +880,7 @@ pat :: { Pat Span }
   | '(' sep_by1(or_pat,',') ',' ')' { TupleP (toList $2) ($1 # $>) }
   | '(' sep_by1(or_pat,',')     ')' {
       case toList $2 of
-        l @ [RestP _] -> TupleP l ($1 # $>)   -- (..) is a tuple pattern
+        l@[RestP _] -> TupleP l ($1 # $>)   -- (..) is a tuple pattern
         [p] -> ParenP p ($1 # $>)             -- (<pat>) is parenthesis around a pattern
         l -> TupleP l ($1 # $>)               -- (<pat1>, <pat2>) is a tuple pattern
     }
