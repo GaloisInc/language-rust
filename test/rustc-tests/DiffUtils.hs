@@ -14,29 +14,24 @@ import GHC.Stack
 
 
 -- | This type is a straightforward hack to let me index by both 'String' and 'Int' in '(!)' below.
-data AesonKey = Index Int | Key String
+data AesonKey = Index Int | Key Aeson.Key
 instance Num AesonKey where fromInteger = Index . fromIntegral
-instance IsString AesonKey where fromString = Key
+instance IsString AesonKey where fromString = Key . fromString
 
 -- | Accessor method for JSON with helpful error messages.
 
 (!) :: HasCallStack => Aeson.Value -> AesonKey -> Aeson.Value
-val@(Aeson.Object hashmap) ! key =
-  case Aeson.lookup (fromString key) hashmap of
+val@(Aeson.Object hashmap) ! Key key =
+  case Aeson.lookup key hashmap of
     Nothing ->
-      let ks = unwords . map show $ HM.keys hashmap
+      let ks = unwords (map (show . fst) (Aeson.toList hashmap))
           suggestion
-            | HM.size hashmap < 8 = "\n(Possible keys: " ++ ks ++ ")"
+            | Aeson.size hashmap < 8 = "\n(Possible keys: " ++ ks ++ ")"
             | otherwise = ""
-      in error $ "No key `" ++ key ++ "' on JSON object `" ++ showAeson val ++ "'" ++ suggestion
+      in error $ "No key `" ++ show key ++ "' on JSON object `" ++ showAeson val ++ "'" ++ suggestion
     Just v -> v
-  where
-  keyString =
-    case key of
-      Index i -> show i
-      Key x   -> x
-
-val ! Key key = error $ "Cannot lookup key `" ++ key ++ "' on non-object JSON `" ++ showAeson val ++ "'"
+  
+val ! Key key = error $ "Cannot lookup key `" ++ show key ++ "' on non-object JSON `" ++ showAeson val ++ "'"
 val@(Aeson.Array vect) ! Index key =
   case vect V.!? key of
     Nothing -> error $ "Index `" ++ show key ++ "' is OOB on JSON array `" ++ showAeson val ++ "' of size " ++ show (V.length vect)
@@ -49,7 +44,7 @@ showAeson = unpack . Aeson.encode
 
 -- | Accessor method for JSON which fails with 'Nothing'
 (!?) :: Aeson.Value -> AesonKey -> Maybe Aeson.Value
-Aeson.Object hashmap !? Key key = Aeson.lookup (fromString key) hashmap
+Aeson.Object hashmap !? Key key = Aeson.lookup key hashmap
 Aeson.Array vect !? Index key = vect V.!? key
 _ !? _ = Nothing
 
