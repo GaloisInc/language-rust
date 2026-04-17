@@ -52,8 +52,7 @@ fn main() {
   let r#async = 0;
   let x = async { 1 };
   let x = y.await;
-  // foo::(i32) -> f64();           TODO
-  // foo::<i32, f64, 'a, A=i32>();  TODO
+  foo::<'a, i32, f64, A=i32>();
 
   match true {
     true => move | | { 1 },
