@@ -1,7 +1,4 @@
-{-# LANGUAGE CPP #-}
-#if __GLASGOW_HASKELL__ >= 800
 {-# OPTIONS_GHC -Wno-missing-methods #-}
-#endif
 module DiffUtils where
 
 import qualified Data.Aeson as Aeson
@@ -11,33 +8,33 @@ import qualified Data.List.NonEmpty as N
 import Control.Monad
 import Data.String
 import Data.ByteString.Lazy.Char8 (unpack)
-import Control.Exception
-import Data.Typeable
 import Data.Foldable
 import Data.Word (Word8)
+import GHC.Stack
 
 
 -- | This type is a straightforward hack to let me index by both 'String' and 'Int' in '(!)' below.
-data AesonKey = Index Int | Key String
+data AesonKey = Index Int | Key Aeson.Key
 instance Num AesonKey where fromInteger = Index . fromIntegral
-instance IsString AesonKey where fromString = Key
+instance IsString AesonKey where fromString = Key . fromString
 
 -- | Accessor method for JSON with helpful error messages.
-(!) :: Aeson.Value -> AesonKey -> Aeson.Value
-val@(Aeson.Object hashmap) ! key =
-  case Aeson.lookup (fromString keyString) hashmap of
-    Nothing -> error $ "No key `" ++ keyString ++ "' on JSON object `" ++ showAeson val ++ "'"
-    Just v -> v
-  where
-  keyString =
-    case key of
-      Index i -> show i
-      Key x   -> x
 
-val ! Key key = error $ "Cannot lookup key `" ++ key ++ "' on non-object JSON `" ++ showAeson val ++ "'"
+(!) :: HasCallStack => Aeson.Value -> AesonKey -> Aeson.Value
+val@(Aeson.Object hashmap) ! Key key =
+  case Aeson.lookup key hashmap of
+    Nothing ->
+      let ks = unwords (map (show . fst) (Aeson.toList hashmap))
+          suggestion
+            | Aeson.size hashmap < 8 = "\n(Possible keys: " ++ ks ++ ")"
+            | otherwise = ""
+      in error $ "No key `" ++ show key ++ "' on JSON object `" ++ showAeson val ++ "'" ++ suggestion
+    Just v -> v
+  
+val ! Key key = error $ "Cannot lookup key `" ++ show key ++ "' on non-object JSON `" ++ showAeson val ++ "'"
 val@(Aeson.Array vect) ! Index key =
   case vect V.!? key of
-    Nothing -> error $ "Index `" ++ show key ++ "' is OOB on JSON array `" ++ showAeson val ++ "'"
+    Nothing -> error $ "Index `" ++ show key ++ "' is OOB on JSON array `" ++ showAeson val ++ "' of size " ++ show (V.length vect)
     Just v -> v
 val ! Index key = error $ "Cannot lookup index `" ++ show key ++ "' on non-array JSON `" ++ showAeson val ++ "'"
 
@@ -47,21 +44,16 @@ showAeson = unpack . Aeson.encode
 
 -- | Accessor method for JSON which fails with 'Nothing'
 (!?) :: Aeson.Value -> AesonKey -> Maybe Aeson.Value
-Aeson.Object hashmap !? Key key = Aeson.lookup (fromString key) hashmap
+Aeson.Object hashmap !? Key key = Aeson.lookup key hashmap
 Aeson.Array vect !? Index key = vect V.!? key
 _ !? _ = Nothing
 
 -- | This lets us do whatever we want while comparing @rustc@ with our parser
 type Diff = IO ()
 
--- | This data type exists only as an easy way to throw a new type of error
-data DiffError = DiffError String deriving (Typeable)
-instance Exception DiffError
-instance Show DiffError where show (DiffError msg) = msg
-
 -- | Class of things that can be diff-ed against their JSON debug output
 class Show a => Diffable a where
-  (===) :: a -> Aeson.Value -> Diff
+  (===) :: HasCallStack => a -> Aeson.Value -> Diff
 
 instance Diffable a => Diffable (N.NonEmpty a) where
   xs === json = toList xs === json
@@ -95,13 +87,13 @@ instance Diffable Int where (===) = diffIntegral
 instance Diffable Integer where (===) = diffIntegral
 
 -- | Diff something that is a number and can be shown
-diffIntegral :: (Show i, Integral i) => i -> Aeson.Value -> Diff
+diffIntegral :: (HasCallStack, Show i, Integral i) => i -> Aeson.Value -> Diff
 diffIntegral i (Aeson.Number s) | fromIntegral i == s = pure ()
 diffIntegral i val = diff "different integral values" i val
 
 -- | Report a difference
-diff :: Show a => String -> a -> Aeson.Value -> IO b
-diff explanation v j = throw (DiffError msg)
+diff :: (HasCallStack, Show a) => String -> a -> Aeson.Value -> IO b
+diff explanation v j = error msg
   where msg = unlines [ explanation ++ " in"
                       , " * parsed AST"
                       , cropped (show v)
@@ -111,5 +103,5 @@ diff explanation v j = throw (DiffError msg)
         cropped msg' | length msg' > 500 = take 500 msg' ++ "..."
                      | otherwise = msg'
 
-  
+
 
