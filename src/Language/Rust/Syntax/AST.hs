@@ -536,7 +536,7 @@ instance (Sem.Semigroup a, Monoid a) => Monoid (Generics a) where
   mappend = (<>)
   mempty = Generics [] mempty mempty
 
--- TODO document
+-- | A generic parameter, which may be a lifetime, type, or constant definition.
 data GenericParam a
   -- | A lifetime definition, introducing a lifetime and the other lifetimes that bound it.
   --
@@ -547,7 +547,9 @@ data GenericParam a
   -- parameter can have any number of (lifetime or trait) bounds, as well as possibly a default type.
   | TypeParam [Attribute a] Ident [GenericBound a] (Maybe (Ty a)) a
 
-  -- TODO document
+  -- | A constant parameter definition. Each constant parameter has an identifier and a type.
+  --
+  -- Example: @const N: usize@
   | ConstParam [Attribute a] Ident (Ty a) a
   deriving (Eq, Ord, Functor, Show, Typeable, Data, Generic, Generic1, NFData)
 
