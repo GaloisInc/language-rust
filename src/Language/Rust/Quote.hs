@@ -125,7 +125,8 @@ pat = quoter parsePat
 
 -- | Quasiquoter for paths (see 'Language.Rust.Syntax.Path')
 --
--- TODO example:
+-- >>> void [path| Hello::World |]
+-- Path False [PathSegment "Hello" Nothing (),PathSegment "World" Nothing ()] ()
 path :: QuasiQuoter
 path = quoter parsePath
 
